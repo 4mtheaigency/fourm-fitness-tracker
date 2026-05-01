@@ -1,12 +1,18 @@
 import os
 from dotenv import load_dotenv
+from pathlib import Path
 
 load_dotenv()
+PORTAL_ENV = Path(__file__).resolve().parents[2] / "Fourm-Trainer-Portal" / ".env"
+if PORTAL_ENV.exists():
+    load_dotenv(PORTAL_ENV, override=False)
 
 class Settings:
     USDA_API_KEY = os.getenv('USDA_API_KEY', '')
     DATABASE_PATH = os.getenv('DATABASE_PATH', 'data/calorie_tracker.db')
     DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
+    SUPABASE_URL = os.getenv('SUPABASE_URL') or os.getenv('VITE_SUPABASE_URL', '')
+    SUPABASE_ANON_KEY = os.getenv('SUPABASE_ANON_KEY') or os.getenv('VITE_SUPABASE_ANON_KEY', '')
 
     DEFAULT_MACRO_RATIOS = {
         'protein': 0.25,

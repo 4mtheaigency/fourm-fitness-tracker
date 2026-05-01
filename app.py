@@ -12,14 +12,32 @@ from database.db import (
 from services.nutrition import calculate_targets, get_remaining, recommend_foods, summarise_day
 from services.food_api import search_open_food_facts
 from services.discord import send_daily_summary
+from services.supabase import insert_wearable_data
 
 # ─── Page Config ─────────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Fourm Fitness — Nutrition Tracker",
-    page_icon="fourm_logo.png",
+    page_title="SIGNAL by Fourm",
+    page_icon="signal_mark.svg",
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+st.markdown("""
+<style>
+  .stApp { background-color: #0A0E1A; }
+  .stSidebar { background-color: #111827; border-right: 1px solid #1E2A3A; }
+  h1, h2, h3 { color: #00D9FF; }
+  .stButton>button {
+    background-color: #00D9FF; color: #0A0E1A;
+    border: none; border-radius: 8px; font-weight: 600;
+  }
+  .stButton>button:hover { background-color: #00FFCC; }
+  .metric-card {
+    background: #111827; border: 1px solid #1E2A3A;
+    border-radius: 12px; padding: 16px;
+  }
+</style>
+""", unsafe_allow_html=True)
 
 # ─── Init ────────────────────────────────────────────────────────────────────────
 init_db()
@@ -181,6 +199,45 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+st.markdown("""
+<style>
+  [data-testid="stAppViewContainer"] { background:#0A0E1A !important; }
+  [data-testid="stSidebar"] { background:#111827 !important; border-right:1px solid #1E2A3A !important; }
+  [data-testid="stSidebar"] * { color:#FFFFFF !important; }
+  html, body, p, span, div, li { color:#8B9BB4; }
+  h1, h2, h3 { color:#00D9FF !important; }
+  .brand-name { color:#FFFFFF !important; }
+  .brand-tagline { color:#00D9FF !important; }
+  .ff-card, .food-card, .rec-card, .stat-tile, [data-testid="metric-container"] {
+    background:#111827 !important;
+    border:1px solid #1E2A3A !important;
+    border-radius:12px !important;
+    box-shadow:0 12px 32px rgba(0,0,0,.24) !important;
+  }
+  .ff-card-blue {
+    background:linear-gradient(135deg,#00D9FF,#00FFCC) !important;
+    color:#0A0E1A !important;
+  }
+  .ff-card-blue * { color:#0A0E1A !important; }
+  .stat-tile .val, .rec-card .rreason { color:#00D9FF !important; }
+  .stat-tile .lbl, .stat-tile .unit, .food-card .food-macros, .rec-card .rmacros, .section-title { color:#8B9BB4 !important; }
+  .food-card .food-name, .rec-card .rname { color:#FFFFFF !important; }
+  .bar-bg { background:#1E2A3A !important; }
+  .motto-strip { background:rgba(0,217,255,.08) !important; border-left-color:#00D9FF !important; color:#8B9BB4 !important; }
+  a { color:#00D9FF !important; }
+  [data-testid="stTextInput"] input,
+  [data-testid="stTextArea"] textarea,
+  [data-testid="stNumberInput"] input,
+  [data-testid="stDateInput"] input,
+  [data-testid="stSelectbox"] [data-baseweb="select"] {
+    background:#0A0E1A !important;
+    border-color:#1E2A3A !important;
+    color:#FFFFFF !important;
+    border-radius:8px !important;
+  }
+</style>
+""", unsafe_allow_html=True)
+
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────────
 def macro_bar(label: str, consumed: float, target: float, color: str, unit: str = "g"):
@@ -249,11 +306,11 @@ def stat_tile(col, label: str, value: str, unit: str = ""):
 
 # ─── Sidebar ─────────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.image("fourm_logo.png", use_column_width=True)
+    st.image("signal_mark.svg", width=80)
     st.markdown("""
     <div>
-      <p class="brand-name">Fourm Fitness</p>
-      <p class="brand-tagline">Strong Fourm. Strong Future.</p>
+      <p class="brand-name">SIGNAL</p>
+      <p class="brand-tagline">by Fourm</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -271,12 +328,18 @@ with st.sidebar:
         )
         st.session_state.user_id = [k for k, v in user_names.items() if v == selected_name][0]
 
-    page = st.radio(
+    section = st.radio(
         "Navigate",
-        ["📊 Dashboard", "🍽️ Log Food", "🔍 Food Library", "💡 Recommendations",
-         "📈 History", "👤 Profile", "➕ Add Food", "⚙️ Settings"],
-        label_visibility="collapsed"
+        ["OVERVIEW", "SESSIONS", "LIBRARY"],
+        label_visibility="collapsed",
+        horizontal=True
     )
+    if section == "OVERVIEW":
+        page = st.radio("Overview", ["📊 Dashboard", "📈 History", "👤 Profile", "⚙️ Settings"], label_visibility="collapsed")
+    elif section == "SESSIONS":
+        page = "🗓️ Sessions"
+    else:
+        page = st.radio("Library", ["🍽️ Log Food", "🔍 Food Library", "💡 Recommendations", "➕ Add Food"], label_visibility="collapsed")
 
     st.divider()
 
@@ -298,15 +361,16 @@ with st.sidebar:
             st.progress(cal_pct / 100)
             st.caption(f"{consumed['calories']:.0f} / {targets['calories']:.0f} kcal")
 
-    st.markdown('<p class="ff-footer" style="color:#e2e8f0;">© Fourm Fitness</p>', unsafe_allow_html=True)
+    st.markdown('<p class="ff-footer" style="color:#8B9BB4;">SIGNAL by Fourm</p>', unsafe_allow_html=True)
+    st.markdown('<p style="text-align:center;font-size:.72rem;"><a href="https://fourmfit.webflow.io" target="_blank">fourmfit.webflow.io</a></p>', unsafe_allow_html=True)
 
 
 # ─── Guard: no profile ────────────────────────────────────────────────────────────
 if not users and page not in ("👤 Profile", "⚙️ Settings"):
     st.markdown("""
     <div class="ff-card-blue">
-      <h2 style="color:#fff;margin:0 0 6px">Welcome to Fourm Fitness 👋</h2>
-      <p style="color:rgba(255,255,255,.85);margin:0">Set up your profile to get started with your nutrition journey.</p>
+      <h2 style="margin:0 0 6px">Welcome to SIGNAL</h2>
+      <p style="margin:0">Set up your profile to get started with your Fourm data layer.</p>
     </div>
     """, unsafe_allow_html=True)
     page = "👤 Profile"
@@ -330,7 +394,8 @@ if page == "📊 Dashboard":
     remaining = get_remaining(targets, consumed)
 
     # Header
-    st.markdown(f"## {user_row['name']}'s Dashboard")
+    st.markdown(f"## {user_row['name']}'s SIGNAL Overview")
+    st.caption("SIGNAL by Fourm")
     st.caption(f"{log_date.strftime('%A, %B %d, %Y')}  ·  Goal: **{user_row['goal']}**")
     st.markdown('<div class="motto-strip">"Preparation is the only variable we control."</div>',
                 unsafe_allow_html=True)
@@ -431,7 +496,61 @@ if page == "📊 Dashboard":
         ):
             col.metric(lbl, f"{val:.0f} {unit}")
 
+    st.markdown("### Connect Your Device")
+    st.caption("Link your wearable to unlock continuous physio state monitoring.")
+    with st.form("wearable_sync_form"):
+        client_email = st.text_input("Client Email", placeholder="client@email.com")
+        device = st.selectbox("Device", ["Apple Health", "Fitbit", "Garmin", "WHOOP", "Oura Ring"])
+        col1, col2 = st.columns(2)
+        with col1:
+            resting_hr = st.number_input("Resting HR (bpm)", min_value=30, max_value=120, value=60)
+            hrv = st.number_input("HRV Score (ms)", min_value=0, max_value=200, value=0)
+        with col2:
+            sleep_score = st.number_input("Sleep Score", min_value=0.0, max_value=100.0, value=0.0)
+            recovery = st.number_input("Recovery Score", min_value=0.0, max_value=100.0, value=0.0)
+
+        if st.form_submit_button("Sync Data", type="primary", use_container_width=True):
+            if not client_email.strip():
+                st.error("Client email is required.")
+            else:
+                ok, error = insert_wearable_data({
+                    "client_email": client_email.strip().lower(),
+                    "device_type": device,
+                    "resting_hr": int(resting_hr),
+                    "hrv": int(hrv),
+                    "sleep_score": float(sleep_score),
+                    "recovery_score": float(recovery),
+                })
+                if ok:
+                    st.success("Wearable data synced.")
+                else:
+                    st.error(error)
+
+    st.markdown("""
+    <div class="ff-card" style="border-left:3px solid #00FFCC;">
+      <div class="section-title">FOURM CUPS™</div>
+      <h3 style="margin:0 0 4px;color:#FFFFFF!important;">Pre-order your weekly meals.</h3>
+      <p style="margin:0 0 12px;color:#8B9BB4;">High-protein layered meals · $8/cup</p>
+      <a href="https://docs.google.com/forms/d/e/1FAIpQLSekzsPRuXkTn-bhRIWMgKdJF1uNUj5rKkKjTroST3G8ZBaGcA/viewform" target="_blank" style="display:inline-block;background:#00FFCC;color:#0A0E1A!important;border-radius:8px;padding:8px 14px;font-size:.78rem;font-weight:800;text-decoration:none;">ORDER NOW</a>
+    </div>
+    """, unsafe_allow_html=True)
+
     st.markdown('<div class="ff-footer">Strong Fourm. Strong Future.</div>', unsafe_allow_html=True)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PAGE: SESSIONS
+# ═══════════════════════════════════════════════════════════════════════════════
+elif page == "🗓️ Sessions":
+    st.markdown("## Sessions")
+    st.caption("Scheduled sessions and Mr. Dates scheduling will appear here.")
+    st.markdown("""
+    <div class="ff-card">
+      <div class="section-title">MR. DATES</div>
+      <h3 style="margin:0 0 4px;color:#FFFFFF!important;">Scheduling shell</h3>
+      <p style="margin:0;color:#8B9BB4;">This tab is reserved for session scheduling, upcoming sessions, and booking links.</p>
+    </div>
+    """, unsafe_allow_html=True)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -982,7 +1101,7 @@ elif page == "⚙️ Settings":
     st.markdown("""
     | | |
     |---|---|
-    | **App** | Fourm Fitness Nutrition Tracker |
+    | **App** | SIGNAL by Fourm |
     | **Food Database** | 40+ seeded foods + Open Food Facts (3M+ live) |
     | **Data Storage** | Local SQLite (private, on-device) |
     | **Version** | 2.0 |
